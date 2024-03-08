@@ -3,6 +3,44 @@
 open Dbdisk
 open Def
 
+module ANCIENT : sig
+  (* Get a value from a file created with Ancient. If the file does
+     not exist, call [create ()] to generate the value, store it in
+     the file, and use the file. If [mtime] is provided, it is the
+     most up-to-date modification time of the database: if the Ancient
+     file is older, it will be recreated. *)
+  val get : ?mtime:float -> create:(unit -> 'a) -> string -> 'a
+end = struct
+  let get ?(mtime = 0.) ~create filename =
+    let exists = Sys.file_exists filename in
+    let uptodate =
+      exists
+      &&
+      let st = Unix.lstat filename in
+      st.st_mtime > mtime
+    in
+
+    if (not exists) || not uptodate then (
+      let temp_dir = Filename.dirname filename in
+      let basename = Filename.basename filename in
+
+      let t = create () in
+      let temp_file = Filename.temp_file ~temp_dir basename ".new" in
+      let fd = Unix.openfile temp_file [ O_RDWR; O_TRUNC; O_CREAT ] 0o644 in
+      let md = Ancient.attach fd 0n in
+      let _ancient = Ancient.share md 0 t in
+      Ancient.detach md;
+      if Sys.file_exists filename then Sys.remove filename;
+      Sys.rename temp_file filename);
+
+    Gc.compact ();
+
+    let fd = Unix.openfile filename [ O_RDONLY ] 0o644 in
+    let md = Ancient.attach fd 0n in
+    let ancient = Ancient.get md 0 in
+    Ancient.follow ancient
+end
+
 let load_value ?offset filename =
   let ic_inx = Secure.open_in_bin filename in
   (match offset with None -> () | Some offset -> seek_in ic_inx offset);
