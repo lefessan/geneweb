@@ -259,7 +259,7 @@ let rec reconstitute_events conf ext cnt =
 *)
 let reconstitute_from_fevents (nsck : bool) (empty_string : 'string)
     (fevents : ('person, 'string) Def.gen_fam_event list) =
-  (* On tri les évènements pour être sûr. *)
+  (* On tri les √©v√®nements pour √™tre s√ªr. *)
   let fevents =
     Event.sort_events
       (fun evt -> Event.Fevent evt.efam_name)
@@ -348,7 +348,7 @@ let reconstitute_from_fevents (nsck : bool) (empty_string : 'string)
         | Efam_Name _ -> loop l)
   in
   loop (List.rev fevents);
-  (* Il faut gérer le cas où l'on supprime délibérément l'évènement. *)
+  (* Il faut gérer le cas oùl'on supprime délibérément l'évènement. *)
   let marr, wit =
     match !found_marriage with
     | None ->
@@ -423,8 +423,8 @@ let reconstitute_family conf base nsck =
     | Some i -> Gwdb.ifam_of_string i
     | None -> Gwdb.dummy_ifam
   in
-  (* Mise à jour des évènements principaux. *)
-  (* Attention, dans le cas où fevent est vide, i.e. on a valider   *)
+  (* Mise à jour des evenements principaux. *)
+  (* Attention, dans le cas ou fevent est vide, i.e. on a valider   *)
   (* avec un texte vide, par exemple lors de l'ajout d'une famille, *)
   (* il faut ajouter un evenement no_mention.                       *)
   let events =
@@ -443,15 +443,15 @@ let reconstitute_family conf base nsck =
       [ evt ]
     else events
   in
-  (* Attention, surtout pas les witnesses, parce que si on en créé un, *)
-  (* on le créé aussi dans witness et on ne pourra jamais valider.     *)
+  (* Attention, surtout pas les witnesses, parce que si on en cree un, *)
+  (* on le cree aussi dans witness et on ne pourra jamais valider.     *)
   let marr, div, _ =
     (* FIXME: Use witnesses (and Array.map fst witnesses)
        when witnesses will be added inplace *)
     reconstitute_from_fevents nsck "" events
   in
   let relation, marriage, marriage_place, marriage_note, marriage_src = marr in
-  (* Si parents de même sex ... Pas de mode multi parent. *)
+  (* Si parents de meme sex ... Pas de mode multi parent. *)
   let relation =
     match parents with
     | [ father; mother ] -> (
@@ -667,7 +667,7 @@ let fwitnesses_of fevents =
       Array.fold_left (fun ipl (ip, _) -> ip :: ipl) ipl e.efam_witnesses)
     [] fevents
 
-(* Lorsqu'on ajout naissance décès par exemple en créant une personne. *)
+(* Lorsqu'on ajout naissance deces par exemple en creant une personne. *)
 let patch_person_with_pevents base ip =
   let p = poi base ip |> gen_person_of_person in
   let evt ~name ?(date = Date.cdate_None) ~place ~src ~note () =
@@ -720,14 +720,14 @@ let patch_person_with_pevents base ip =
         evt ~date ()
     | None -> if sou base p.death_place = "" then None else evt ()
   in
-  (* Attention, on prend aussi les autres évènements sinon,  *)
-  (* on va tout effacer et ne garder que naissance et décès. *)
+  (* Attention, on prend aussi les autres evenements sinon,  *)
+  (* on va tout effacer et ne garder que naissance et deces. *)
   let pevents =
     let found_birth = ref false in
     let found_baptism = ref false in
     let found_death = ref false in
     let replace_witnesses event found new_event =
-      (* Si il y avait des témoins, on les remets en place. *)
+      (* Si il y avait des t√©moins, on les remets en place. *)
       if !found then event
       else
         match new_event with
@@ -764,7 +764,7 @@ let patch_parent_with_pevents base cpl =
 let patch_children_with_pevents base des =
   Array.iter (patch_person_with_pevents base) des.children
 
-(* On met à jour les témoins maintenant. *)
+(* On met a jour les temoins maintenant. *)
 let update_family_with_fevents conf base fam =
   let marr, div, witnesses =
     reconstitute_from_fevents
@@ -809,7 +809,7 @@ let aux_effective_mod conf base nsck sfam scpl sdes fi origin_file =
   let nmoth_p = poi base (Adef.mother ncpl) in
   let nfam = update_family_with_fevents conf base nfam in
   let nfam =
-    (* En mode api, on gère directement la relation de même sexe. *)
+    (* En mode api, on gere directement la relation de meme sexe. *)
     if conf.api_mode then { nfam with relation = sfam.relation } else nfam
   in
   if not nsck then (
@@ -971,15 +971,15 @@ let effective_inv conf base ip u ifam =
 (* ************************************************************************ *)
 
 (** [Description] : Modifie l'ordre de la famille en positionnant la famille
-      ifam à la position n. Exemple : [f1 f2 f3 f4] f1 3 => [f2 f3 f1 f4].
+      ifam a la position n. Exemple : [f1 f2 f3 f4] f1 3 => [f2 f3 f1 f4].
     [Args] :
-      - base : base de donnée
+      - base : base de donnee
       - ip   : iper
       - u    : person
-      - ifam : famille à changer de place
+      - ifam : famille a changer de place
       - n    : nouvelle position de la famille
-    [Retour] : Néant
-    [Rem] : Non exporté en clair hors de ce module.                         *)
+    [Retour] : Neant
+    [Rem] : Non exporte en clair hors de ce module.                         *)
 let effective_chg_order base ip u ifam n =
   let fam = UpdateFam.change_order u ifam n in
   let u = { family = Array.of_list fam } in
@@ -1098,7 +1098,7 @@ let print_title conf fmt _ =
 
 let print_mod_ok conf base (wl, ml) cpl des =
   Hutil.header conf @@ print_title conf "family modified";
-  (* Si on a supprim� des caract�res interdits *)
+  (* Si on a supprime des caracteres interdits *)
   if List.length !removed_string > 0 then (
     Output.print_sstring conf "<h3 class=\"error\">";
     Output.printf conf
@@ -1118,7 +1118,7 @@ let print_change_event_order_ok conf base (wl, ml) cpl des =
 
 let print_add_ok conf base (wl, ml) cpl des =
   Hutil.header conf @@ print_title conf "family added";
-  (* Si on a supprim� des caract�res interdits *)
+  (* Si on a supprimÈ des caractËres interdits *)
   if List.length !removed_string > 0 then (
     Output.printf conf "<h2 class=\"error\">%s</h2>\n"
       (Utf8.capitalize_fst (transl conf "forbidden char"));
@@ -1348,8 +1348,8 @@ let family_structure base ifam =
   (get_parent_array fam, get_children fam)
 
 let print_mod o_conf base =
-  (* Attention ! On pense à remettre les compteurs à *)
-  (* zéro pour la détection des caractères interdits *)
+  (* Attention ! On pense a remettre les compteurs a *)
+  (* zero pour la detection des caracteres interdits *)
   let () = removed_string := [] in
   let o_f =
     let ifam =
