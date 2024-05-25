@@ -3,6 +3,7 @@
 open Geneweb
 open Def
 
+
 type person = (int, int, int) Def.gen_person
 type ascend = int Def.gen_ascend
 type union = int Def.gen_union
@@ -63,12 +64,6 @@ let in_file = ref ""
 let print_location pos =
   Printf.fprintf !log_oc "File \"%s\", line %d:\n" !in_file pos
 
-(*
-let rec skip_eol =
-  parser
-  | [< ''\010' | '\013'; _ = skip_eol >] -> ()
-  | [< >] -> ()
-*)
 let rec skip_eol (strm__ : _ Stream.t) =
   match Stream.peek strm__ with
     Some ('\010' | '\013') ->
@@ -79,13 +74,6 @@ let rec skip_eol (strm__ : _ Stream.t) =
       ()
   | _ -> ()
 
-(*let rec get_to_eoln len =
-  parser
-  | [< ''\010' | '\013'; _ = skip_eol >] -> Buff.get len
-  | [< ''\t'; s >] -> get_to_eoln (Buff.store len ' ') s
-  | [< 'c; s >] -> get_to_eoln (Buff.store len c) s
-  | [< >] -> Buff.get len
-*)
 let rec get_to_eoln len (strm__ : _ Stream.t) =
   match Stream.peek strm__ with
     Some ('\010' | '\013') ->
@@ -98,12 +86,6 @@ let rec get_to_eoln len (strm__ : _ Stream.t) =
   | Some c -> Stream.junk strm__; get_to_eoln (Buff.store len c) strm__
   | _ -> Buff.get len
 
-(*let rec skip_to_eoln =
-  parser
-  | [< ''\010' | '\013'; _ = skip_eol >] -> ()
-  | [< '_; s >] -> skip_to_eoln s
-  | [< >] -> ()
-*)
 let rec skip_to_eoln (strm__ : _ Stream.t) =
   match Stream.peek strm__ with
     Some ('\010' | '\013') ->
@@ -117,13 +99,6 @@ let rec skip_to_eoln (strm__ : _ Stream.t) =
 
 let eol_chars = ['\010'; '\013']
 
-(*let rec get_ident len =
-  parser
-  | [< '' ' | '\t' >] -> Buff.get len
-  | [< 'c when not (List.mem c eol_chars); s >] ->
-      get_ident (Buff.store len c) s
-  | [< >] -> Buff.get len
-*)
 let rec get_ident len (strm__ : _ Stream.t) =
   match Stream.peek strm__ with
     Some (' ' | '\t') -> Stream.junk strm__; Buff.get len
@@ -131,21 +106,11 @@ let rec get_ident len (strm__ : _ Stream.t) =
       Stream.junk strm__; get_ident (Buff.store len c) strm__
   | _ -> Buff.get len
 
-(*let skip_space =
-  parser
-  | [< '' ' | '\t' >] -> ()
-  | [< >] -> ()
-*)
 let skip_space (strm__ : _ Stream.t) =
   match Stream.peek strm__ with
     Some (' ' | '\t') -> Stream.junk strm__; ()
   | _ -> ()
 
-(*let rec line_start num =
-  parser
-  | [< '' '; s >] -> line_start num s
-  | [< 'x when x = num >] -> ()
-*)
 let rec line_start num (strm__ : _ Stream.t) =
   match Stream.peek strm__ with
     Some ' ' -> Stream.junk strm__; line_start num strm__
@@ -304,33 +269,6 @@ let utf8_of_string s =
   | MacIntosh -> Mutil.utf_8_of_iso_8859_1 (ascii_of_macintosh s)
   | Utf8 -> s
 
-(*
-let rec get_lev n =
-  parser
-    [< _ = line_start n; _ = skip_space; r1 = get_ident 0; strm >] ->
-      let (rlab, rval, rcont, l) =
-        if String.length r1 > 0 && r1.[0] = '@' then parse_address n r1 strm
-        else parse_text n r1 strm
-      in
-      {rlab = rlab; rval = utf8_of_string rval;
-       rcont = utf8_of_string rcont; rsons = List.rev l; rpos = !line_cnt;
-       rused = false}
-and parse_address n r1 =
-  parser
-    [< r2 = get_ident 0; r3 = get_to_eoln 0 (* ? "get to eoln" *);
-       l = get_lev_list [] (Char.chr (Char.code n + 1)) (* ? "get lev list" *) >] ->
-      (r2, r1, r3, l)
-and parse_text n r1 =
-  parser
-    [< r2 = get_to_eoln 0;
-       l = get_lev_list [] (Char.chr (Char.code n + 1)) (* ? "get lev list" *) >] ->
-      (r1, r2, "", l)
-and get_lev_list l n =
-  parser
-  | [< x = get_lev n; s >] -> get_lev_list (x :: l) n s
-  | [< >] -> l
-*)
-
 let rec get_lev n (strm__ : _ Stream.t) =
   let _ = line_start n strm__ in
   let _ =
@@ -409,18 +347,6 @@ let warning_month_number_dates () =
   | _ -> ()
 
 (* Decoding fields *)
-(*
-let rec skip_spaces =
-  parser
-  | [< '' '; s >] -> skip_spaces s
-  | [< >] -> ()
-let rec ident_slash len =
-  parser
-  | [< ''/' >] -> Buff.get len
-  | [< ''\t'; a = ident_slash (Buff.store len ' ') >] -> a
-  | [< 'c; a = ident_slash (Buff.store len c) >] -> a
-  | [< >] -> Buff.get len
-*)
 
 let rec skip_spaces (strm__ : _ Stream.t) =
   match Stream.peek strm__ with
@@ -498,20 +424,6 @@ let less_greater_escaped s =
     let len = compute_len 0 0 in copy_code_in (Bytes.create len) 0 0
   else s
 
-(*
-let parse_name =
-  parser
-    [< _ = skip_spaces;
-       invert =
-       (parser
-       | [< ''/' >] -> true
-       | [< >] -> false) ;
-       f = ident_slash 0; _ = skip_spaces; s = ident_slash 0 >] ->
-  let (f, s) = if invert then (s, f) else (f, s) in
-  let f = strip_spaces f in
-  let s = strip_spaces s in
-  ((if f = "" then "x" else f), (if s = "" then "?" else s))
-*)
 let parse_name (strm__ : _ Stream.t) =
   let _ = skip_spaces strm__ in
   let invert =
@@ -556,32 +468,6 @@ let rec find_field_with_value lab v =
       else find_field_with_value lab v rl
   | [] -> false
 
-(*
-let rec lexing_date =
-  parser
-  | [< ''0'..'9' as c; n = number (Buff.store 0 c) >] -> ("INT", n)
-  | [< ''A'..'Z' as c; i = ident (Buff.store 0 c) >] -> ("ID", i)
-  | [< ''('; len = text 0 >] -> ("TEXT", Buff.get len)
-  | [< ''.' >] -> ("", ".")
-  | [< '' ' | '\t' | '\013'; s >] -> lexing_date s
-  | [< _ = Stream.empty >] -> ("EOI", "")
-  | [< 'x >] -> ("", String.make 1 x)
-and number len =
-  parser
-  | [< ''0'..'9' as c; a = number (Buff.store len c) >] -> a
-  | [< >] -> Buff.get len
-and ident len =
-  parser
-  | [< ''A'..'Z' as c; a = ident (Buff.store len c) >] -> a
-  | [< >] -> Buff.get len
-and text len =
-  parser
-  | [< '')' >] -> len
-  | [< ''('; len = text (Buff.store len '('); s >] ->
-      text (Buff.store len ')') s
-  | [< 'c; s >] -> text (Buff.store len c) s
-  | [< >] -> len
-*)
 let rec lexing_date (strm__ : _ Stream.t) =
   match Stream.peek strm__ with
     Some ('0'..'9' as c) ->
@@ -642,8 +528,6 @@ and text len (strm__ : _ Stream.t) =
   | Some c -> Stream.junk strm__; text (Buff.store len c) strm__
   | _ -> len
 
-
-
 let make_date_lexing s = Stream.from (fun _ -> Some (lexing_date s))
 
 let tparse = Token.default_match
@@ -687,13 +571,6 @@ let start_with_int x =
   try let s = String.sub x 0 1 in let _ = int_of_string s in true with
     _ -> false
 
-(*
-let roman_int =
-  let p =
-    parser [< '("ID", x) when is_roman_int x >] -> Mutil.arabian_of_roman x
-  in
-  Grammar.Entry.of_parser date_g "roman int" p
-*)
 let roman_int =
   let p (strm__ : _ Stream.t) =
     match Stream.peek strm__ with
@@ -761,6 +638,7 @@ let recover_date cal = function
     Dgreg (d, cal)
   | d -> d
 
+(*
 [@@@ocaml.warning "-27"]
 EXTEND
   GLOBAL: date_value date_interval date_value_recover;
@@ -930,6 +808,710 @@ EXTEND
   ;
 END
 [@@@ocaml.warning "+27"]
+*)
+
+let _ =
+  Grammar.safe_extend
+    (let _ = (date_value : 'date_value Grammar.Entry.e)
+     and _ = (date_interval : 'date_interval Grammar.Entry.e)
+     and _ = (date_value_recover : 'date_value_recover Grammar.Entry.e) in
+     let grammar_entry_create s =
+       Grammar.create_local_entry (Grammar.of_entry date_value) s
+     in
+     let date_or_text : 'date_or_text Grammar.Entry.e =
+       grammar_entry_create "date_or_text"
+     and date_range : 'date_range Grammar.Entry.e =
+       grammar_entry_create "date_range"
+     and date : 'date Grammar.Entry.e = grammar_entry_create "date"
+     and date_calendar : 'date_calendar Grammar.Entry.e =
+       grammar_entry_create "date_calendar"
+     and date_greg : 'date_greg Grammar.Entry.e =
+       grammar_entry_create "date_greg"
+     and date_fren : 'date_fren Grammar.Entry.e =
+       grammar_entry_create "date_fren"
+     and date_fren_kont : 'date_fren_kont Grammar.Entry.e =
+       grammar_entry_create "date_fren_kont"
+     and date_hebr : 'date_hebr Grammar.Entry.e =
+       grammar_entry_create "date_hebr"
+     and gen_month : 'gen_month Grammar.Entry.e =
+       grammar_entry_create "gen_month"
+     and month : 'month Grammar.Entry.e = grammar_entry_create "month"
+     and gen_french : 'gen_french Grammar.Entry.e =
+       grammar_entry_create "gen_french"
+     and french : 'french Grammar.Entry.e = grammar_entry_create "french"
+     and year_fren : 'year_fren Grammar.Entry.e =
+       grammar_entry_create "year_fren"
+     and gen_hebr : 'gen_hebr Grammar.Entry.e =
+       grammar_entry_create "gen_hebr"
+     and hebr : 'hebr Grammar.Entry.e = grammar_entry_create "hebr"
+     and int : 'int Grammar.Entry.e = grammar_entry_create "int" in
+     [Grammar.extension (date_value : 'date_value Grammar.Entry.e) None
+        [None, None,
+         [Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next Grammar.r_stop
+                  (Grammar.s_nterm
+                     (date_or_text : 'date_or_text Grammar.Entry.e)))
+               (Grammar.s_token ("EOI", "")),
+             (fun _ (d : 'date_or_text) (loc : Ploc.t) ->
+                (d : 'date_value)))]];
+      Grammar.extension
+        (date_value_recover : 'date_value_recover Grammar.Entry.e) None
+        [None, None,
+         [Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next
+                  (Grammar.r_next
+                     (Grammar.r_next
+                        (Grammar.r_next Grammar.r_stop
+                           (Grammar.s_token ("", "@")))
+                        (Grammar.s_token ("", "#")))
+                     (Grammar.s_token ("ID", "DHEBREW")))
+                  (Grammar.s_token ("", "@")))
+               (Grammar.s_nterm (date_value : 'date_value Grammar.Entry.e)),
+             (fun (d : 'date_value) _ _ _ _ (loc : Ploc.t) ->
+                (recover_date Dhebrew d : 'date_value_recover)));
+          Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next
+                  (Grammar.r_next
+                     (Grammar.r_next
+                        (Grammar.r_next
+                           (Grammar.r_next Grammar.r_stop
+                              (Grammar.s_token ("", "@")))
+                           (Grammar.s_token ("", "#")))
+                        (Grammar.s_token ("ID", "DFRENCH")))
+                     (Grammar.s_token ("ID", "R")))
+                  (Grammar.s_token ("", "@")))
+               (Grammar.s_nterm (date_value : 'date_value Grammar.Entry.e)),
+             (fun (d : 'date_value) _ _ _ _ _ (loc : Ploc.t) ->
+                (recover_date Dfrench d : 'date_value_recover)));
+          Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next
+                  (Grammar.r_next
+                     (Grammar.r_next
+                        (Grammar.r_next Grammar.r_stop
+                           (Grammar.s_token ("", "@")))
+                        (Grammar.s_token ("", "#")))
+                     (Grammar.s_token ("ID", "DJULIAN")))
+                  (Grammar.s_token ("", "@")))
+               (Grammar.s_nterm (date_value : 'date_value Grammar.Entry.e)),
+             (fun (d : 'date_value) _ _ _ _ (loc : Ploc.t) ->
+                (recover_date Djulian d : 'date_value_recover)));
+          Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next
+                  (Grammar.r_next
+                     (Grammar.r_next
+                        (Grammar.r_next Grammar.r_stop
+                           (Grammar.s_token ("", "@")))
+                        (Grammar.s_token ("", "#")))
+                     (Grammar.s_token ("ID", "DGREGORIAN")))
+                  (Grammar.s_token ("", "@")))
+               (Grammar.s_nterm (date_value : 'date_value Grammar.Entry.e)),
+             (fun (d : 'date_value) _ _ _ _ (loc : Ploc.t) ->
+                (recover_date Dgregorian d : 'date_value_recover)))]];
+      Grammar.extension (date_interval : 'date_interval Grammar.Entry.e) None
+        [None, None,
+         [Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next Grammar.r_stop
+                  (Grammar.s_nterm
+                     (date_or_text : 'date_or_text Grammar.Entry.e)))
+               (Grammar.s_token ("EOI", "")),
+             (fun _ (dt : 'date_or_text) (loc : Ploc.t) ->
+                (Begin dt : 'date_interval)));
+          Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next
+                  (Grammar.r_next
+                     (Grammar.r_next
+                        (Grammar.r_next Grammar.r_stop
+                           (Grammar.s_token ("ID", "FROM")))
+                        (Grammar.s_nterm
+                           (date_or_text : 'date_or_text Grammar.Entry.e)))
+                     (Grammar.s_token ("ID", "TO")))
+                  (Grammar.s_nterm
+                     (date_or_text : 'date_or_text Grammar.Entry.e)))
+               (Grammar.s_token ("EOI", "")),
+             (fun _ (dt1 : 'date_or_text) _ (dt : 'date_or_text) _
+                  (loc : Ploc.t) ->
+                (BeginEnd (dt, dt1) : 'date_interval)));
+          Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next
+                  (Grammar.r_next Grammar.r_stop
+                     (Grammar.s_token ("ID", "FROM")))
+                  (Grammar.s_nterm
+                     (date_or_text : 'date_or_text Grammar.Entry.e)))
+               (Grammar.s_token ("EOI", "")),
+             (fun _ (dt : 'date_or_text) _ (loc : Ploc.t) ->
+                (Begin dt : 'date_interval)));
+          Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next
+                  (Grammar.r_next Grammar.r_stop
+                     (Grammar.s_token ("ID", "TO")))
+                  (Grammar.s_nterm
+                     (date_or_text : 'date_or_text Grammar.Entry.e)))
+               (Grammar.s_token ("EOI", "")),
+             (fun _ (dt : 'date_or_text) _ (loc : Ploc.t) ->
+                (End dt : 'date_interval)));
+          Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next
+                  (Grammar.r_next
+                     (Grammar.r_next
+                        (Grammar.r_next Grammar.r_stop
+                           (Grammar.s_token ("ID", "BET")))
+                        (Grammar.s_nterm
+                           (date_or_text : 'date_or_text Grammar.Entry.e)))
+                     (Grammar.s_token ("ID", "AND")))
+                  (Grammar.s_nterm
+                     (date_or_text : 'date_or_text Grammar.Entry.e)))
+               (Grammar.s_token ("EOI", "")),
+             (fun _ (dt1 : 'date_or_text) _ (dt : 'date_or_text) _
+                  (loc : Ploc.t) ->
+                (BeginEnd (dt, dt1) : 'date_interval)));
+          Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next
+                  (Grammar.r_next Grammar.r_stop
+                     (Grammar.s_token ("ID", "AFT")))
+                  (Grammar.s_nterm
+                     (date_or_text : 'date_or_text Grammar.Entry.e)))
+               (Grammar.s_token ("EOI", "")),
+             (fun _ (dt : 'date_or_text) _ (loc : Ploc.t) ->
+                (Begin dt : 'date_interval)));
+          Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next
+                  (Grammar.r_next Grammar.r_stop
+                     (Grammar.s_token ("ID", "BEF")))
+                  (Grammar.s_nterm
+                     (date_or_text : 'date_or_text Grammar.Entry.e)))
+               (Grammar.s_token ("EOI", "")),
+             (fun _ (dt : 'date_or_text) _ (loc : Ploc.t) ->
+                (End dt : 'date_interval)))]];
+      Grammar.extension (date_or_text : 'date_or_text Grammar.Entry.e) None
+        [None, None,
+         [Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("TEXT", "")),
+             (fun (s : string) (loc : Ploc.t) -> (Dtext s : 'date_or_text)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop
+               (Grammar.s_nterm (date : 'date Grammar.Entry.e)),
+             (fun (d, cal : 'date) (loc : Ploc.t) ->
+                (Dgreg (d, cal) : 'date_or_text)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop
+               (Grammar.s_nterm (date_range : 'date_range Grammar.Entry.e)),
+             (fun (dr : 'date_range) (loc : Ploc.t) ->
+                (match dr with
+                   Begin (d, cal) -> Dgreg ({d with prec = After}, cal)
+                 | End (d, cal) -> Dgreg ({d with prec = Before}, cal)
+                 | BeginEnd ((d1, cal1), (d2, cal2)) ->
+                     let y2 =
+                       match cal2 with
+                         Dgregorian -> d2.year
+                       | Djulian -> (Calendar.julian_of_gregorian d2).year
+                       | Dfrench -> (Calendar.french_of_gregorian d2).year
+                       | Dhebrew -> (Calendar.hebrew_of_gregorian d2).year
+                     in
+                     Dgreg ({d1 with prec = YearInt y2}, cal1) :
+                 'date_or_text)))]];
+      Grammar.extension (date_range : 'date_range Grammar.Entry.e) None
+        [None, None,
+         [Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next
+                  (Grammar.r_next
+                     (Grammar.r_next Grammar.r_stop
+                        (Grammar.s_token ("ID", "FROM")))
+                     (Grammar.s_nterm (date : 'date Grammar.Entry.e)))
+                  (Grammar.s_token ("ID", "TO")))
+               (Grammar.s_nterm (date : 'date Grammar.Entry.e)),
+             (fun (dt1 : 'date) _ (dt : 'date) _ (loc : Ploc.t) ->
+                (BeginEnd (dt, dt1) : 'date_range)));
+          Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next Grammar.r_stop
+                  (Grammar.s_token ("ID", "FROM")))
+               (Grammar.s_nterm (date : 'date Grammar.Entry.e)),
+             (fun (dt : 'date) _ (loc : Ploc.t) -> (Begin dt : 'date_range)));
+          Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "TO")))
+               (Grammar.s_nterm (date : 'date Grammar.Entry.e)),
+             (fun (dt : 'date) _ (loc : Ploc.t) -> (End dt : 'date_range)));
+          Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next
+                  (Grammar.r_next
+                     (Grammar.r_next Grammar.r_stop
+                        (Grammar.s_token ("ID", "BET")))
+                     (Grammar.s_nterm (date : 'date Grammar.Entry.e)))
+                  (Grammar.s_token ("ID", "AND")))
+               (Grammar.s_nterm (date : 'date Grammar.Entry.e)),
+             (fun (dt1 : 'date) _ (dt : 'date) _ (loc : Ploc.t) ->
+                (BeginEnd (dt, dt1) : 'date_range)));
+          Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "AFT")))
+               (Grammar.s_nterm (date : 'date Grammar.Entry.e)),
+             (fun (dt : 'date) _ (loc : Ploc.t) -> (Begin dt : 'date_range)));
+          Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "BEF")))
+               (Grammar.s_nterm (date : 'date Grammar.Entry.e)),
+             (fun (dt : 'date) _ (loc : Ploc.t) -> (End dt : 'date_range)))]];
+      Grammar.extension (date : 'date Grammar.Entry.e) None
+        [None, None,
+         [Grammar.production
+            (Grammar.r_next Grammar.r_stop
+               (Grammar.s_nterm
+                  (date_calendar : 'date_calendar Grammar.Entry.e)),
+             (fun (d, cal : 'date_calendar) (loc : Ploc.t) ->
+                (d, cal : 'date)));
+          Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "BEF")))
+               (Grammar.s_nterm
+                  (date_calendar : 'date_calendar Grammar.Entry.e)),
+             (fun (d, cal : 'date_calendar) _ (loc : Ploc.t) ->
+                ({d with prec = After}, cal : 'date)));
+          Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "AFT")))
+               (Grammar.s_nterm
+                  (date_calendar : 'date_calendar Grammar.Entry.e)),
+             (fun (d, cal : 'date_calendar) _ (loc : Ploc.t) ->
+                ({d with prec = Before}, cal : 'date)));
+          Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "EST")))
+               (Grammar.s_nterm
+                  (date_calendar : 'date_calendar Grammar.Entry.e)),
+             (fun (d, cal : 'date_calendar) _ (loc : Ploc.t) ->
+                ({d with prec = Maybe}, cal : 'date)));
+          Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "ENV")))
+               (Grammar.s_nterm
+                  (date_calendar : 'date_calendar Grammar.Entry.e)),
+             (fun (d, cal : 'date_calendar) _ (loc : Ploc.t) ->
+                ({d with prec = About}, cal : 'date)));
+          Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "ABT")))
+               (Grammar.s_nterm
+                  (date_calendar : 'date_calendar Grammar.Entry.e)),
+             (fun (d, cal : 'date_calendar) _ (loc : Ploc.t) ->
+                ({d with prec = About}, cal : 'date)))]];
+      Grammar.extension (date_calendar : 'date_calendar Grammar.Entry.e) None
+        [None, None,
+         [Grammar.production
+            (Grammar.r_next Grammar.r_stop
+               (Grammar.s_nterm (date_greg : 'date_greg Grammar.Entry.e)),
+             (fun (d : 'date_greg) (loc : Ploc.t) ->
+                (d, Dgregorian : 'date_calendar)));
+          Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next
+                  (Grammar.r_next
+                     (Grammar.r_next
+                        (Grammar.r_next Grammar.r_stop
+                           (Grammar.s_token ("", "@")))
+                        (Grammar.s_token ("", "#")))
+                     (Grammar.s_token ("ID", "DHEBREW")))
+                  (Grammar.s_token ("", "@")))
+               (Grammar.s_nterm (date_hebr : 'date_hebr Grammar.Entry.e)),
+             (fun (d : 'date_hebr) _ _ _ _ (loc : Ploc.t) ->
+                (Calendar.gregorian_of_hebrew d, Dhebrew : 'date_calendar)));
+          Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next
+                  (Grammar.r_next
+                     (Grammar.r_next
+                        (Grammar.r_next
+                           (Grammar.r_next Grammar.r_stop
+                              (Grammar.s_token ("", "@")))
+                           (Grammar.s_token ("", "#")))
+                        (Grammar.s_token ("ID", "DFRENCH")))
+                     (Grammar.s_token ("ID", "R")))
+                  (Grammar.s_token ("", "@")))
+               (Grammar.s_nterm (date_fren : 'date_fren Grammar.Entry.e)),
+             (fun (d : 'date_fren) _ _ _ _ _ (loc : Ploc.t) ->
+                (Calendar.gregorian_of_french d, Dfrench : 'date_calendar)));
+          Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next
+                  (Grammar.r_next
+                     (Grammar.r_next
+                        (Grammar.r_next Grammar.r_stop
+                           (Grammar.s_token ("", "@")))
+                        (Grammar.s_token ("", "#")))
+                     (Grammar.s_token ("ID", "DJULIAN")))
+                  (Grammar.s_token ("", "@")))
+               (Grammar.s_nterm (date_greg : 'date_greg Grammar.Entry.e)),
+             (fun (d : 'date_greg) _ _ _ _ (loc : Ploc.t) ->
+                (Calendar.gregorian_of_julian d, Djulian : 'date_calendar)));
+          Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next
+                  (Grammar.r_next
+                     (Grammar.r_next
+                        (Grammar.r_next Grammar.r_stop
+                           (Grammar.s_token ("", "@")))
+                        (Grammar.s_token ("", "#")))
+                     (Grammar.s_token ("ID", "DGREGORIAN")))
+                  (Grammar.s_token ("", "@")))
+               (Grammar.s_nterm (date_greg : 'date_greg Grammar.Entry.e)),
+             (fun (d : 'date_greg) _ _ _ _ (loc : Ploc.t) ->
+                (d, Dgregorian : 'date_calendar)))]];
+      Grammar.extension (date_greg : 'date_greg Grammar.Entry.e) None
+        [None, None,
+         [Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next
+                  (Grammar.r_next
+                     (Grammar.r_next
+                        (Grammar.r_next
+                           (Grammar.r_next
+                              (Grammar.r_next Grammar.r_stop
+                                 (Grammar.s_list0
+                                    (Grammar.s_token ("", "."))))
+                              (Grammar.s_opt
+                                 (Grammar.s_nterm
+                                    (int : 'int Grammar.Entry.e))))
+                           (Grammar.s_list0
+                              (Grammar.s_rules
+                                 [Grammar.production
+                                    (Grammar.r_next Grammar.r_stop
+                                       (Grammar.s_token ("", "/")),
+                                     (fun (x : string) (loc : Ploc.t) ->
+                                        (x : 'e__1)));
+                                  Grammar.production
+                                    (Grammar.r_next Grammar.r_stop
+                                       (Grammar.s_token ("", ".")),
+                                     (fun (x : string) (loc : Ploc.t) ->
+                                        (x : 'e__1)))])))
+                        (Grammar.s_opt
+                           (Grammar.s_nterm
+                              (gen_month : 'gen_month Grammar.Entry.e))))
+                     (Grammar.s_list0
+                        (Grammar.s_rules
+                           [Grammar.production
+                              (Grammar.r_next Grammar.r_stop
+                                 (Grammar.s_token ("", "/")),
+                               (fun (x : string) (loc : Ploc.t) ->
+                                  (x : 'e__2)));
+                            Grammar.production
+                              (Grammar.r_next Grammar.r_stop
+                                 (Grammar.s_token ("", ".")),
+                               (fun (x : string) (loc : Ploc.t) ->
+                                  (x : 'e__2)))])))
+                  (Grammar.s_opt
+                     (Grammar.s_nterm (int : 'int Grammar.Entry.e))))
+               (Grammar.s_list0 (Grammar.s_token ("", "."))),
+             (fun _ (n3 : 'int option) _ (n2 : 'gen_month option) _
+                  (n1 : 'int option) _ (loc : Ploc.t) ->
+                (make_date n1 n2 n3 : 'date_greg)))]];
+      Grammar.extension (date_fren : 'date_fren Grammar.Entry.e) None
+        [None, None,
+         [Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next Grammar.r_stop
+                  (Grammar.s_list0 (Grammar.s_token ("", "."))))
+               (Grammar.s_nterm
+                  (date_fren_kont : 'date_fren_kont Grammar.Entry.e)),
+             (fun (n2, n3 : 'date_fren_kont) _ (loc : Ploc.t) ->
+                (make_date None n2 n3 : 'date_fren)));
+          Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next Grammar.r_stop
+                  (Grammar.s_list0 (Grammar.s_token ("", "."))))
+               (Grammar.s_nterm (year_fren : 'year_fren Grammar.Entry.e)),
+             (fun (n1 : 'year_fren) _ (loc : Ploc.t) ->
+                (make_date (Some n1) None None : 'date_fren)));
+          Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next
+                  (Grammar.r_next Grammar.r_stop
+                     (Grammar.s_list0 (Grammar.s_token ("", "."))))
+                  (Grammar.s_nterm (int : 'int Grammar.Entry.e)))
+               (Grammar.s_nterm
+                  (date_fren_kont : 'date_fren_kont Grammar.Entry.e)),
+             (fun (n2, n3 : 'date_fren_kont) (n1 : 'int) _ (loc : Ploc.t) ->
+                (make_date (Some n1) n2 n3 : 'date_fren)))]];
+      Grammar.extension (date_fren_kont : 'date_fren_kont Grammar.Entry.e)
+        None
+        [None, None,
+         [Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next
+                  (Grammar.r_next
+                     (Grammar.r_next
+                        (Grammar.r_next Grammar.r_stop
+                           (Grammar.s_list0
+                              (Grammar.s_rules
+                                 [Grammar.production
+                                    (Grammar.r_next Grammar.r_stop
+                                       (Grammar.s_token ("", "/")),
+                                     (fun (x : string) (loc : Ploc.t) ->
+                                        (x : 'e__3)));
+                                  Grammar.production
+                                    (Grammar.r_next Grammar.r_stop
+                                       (Grammar.s_token ("", ".")),
+                                     (fun (x : string) (loc : Ploc.t) ->
+                                        (x : 'e__3)))])))
+                        (Grammar.s_opt
+                           (Grammar.s_nterm
+                              (gen_french : 'gen_french Grammar.Entry.e))))
+                     (Grammar.s_list0
+                        (Grammar.s_rules
+                           [Grammar.production
+                              (Grammar.r_next Grammar.r_stop
+                                 (Grammar.s_token ("", "/")),
+                               (fun (x : string) (loc : Ploc.t) ->
+                                  (x : 'e__4)));
+                            Grammar.production
+                              (Grammar.r_next Grammar.r_stop
+                                 (Grammar.s_token ("", ".")),
+                               (fun (x : string) (loc : Ploc.t) ->
+                                  (x : 'e__4)))])))
+                  (Grammar.s_opt
+                     (Grammar.s_nterm
+                        (year_fren : 'year_fren Grammar.Entry.e))))
+               (Grammar.s_list0 (Grammar.s_token ("", "."))),
+             (fun _ (n3 : 'year_fren option) _ (n2 : 'gen_french option) _
+                  (loc : Ploc.t) ->
+                (n2, n3 : 'date_fren_kont)))]];
+      Grammar.extension (date_hebr : 'date_hebr Grammar.Entry.e) None
+        [None, None,
+         [Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next
+                  (Grammar.r_next
+                     (Grammar.r_next
+                        (Grammar.r_next
+                           (Grammar.r_next
+                              (Grammar.r_next Grammar.r_stop
+                                 (Grammar.s_list0
+                                    (Grammar.s_token ("", "."))))
+                              (Grammar.s_opt
+                                 (Grammar.s_nterm
+                                    (int : 'int Grammar.Entry.e))))
+                           (Grammar.s_list0
+                              (Grammar.s_rules
+                                 [Grammar.production
+                                    (Grammar.r_next Grammar.r_stop
+                                       (Grammar.s_token ("", "/")),
+                                     (fun (x : string) (loc : Ploc.t) ->
+                                        (x : 'e__5)));
+                                  Grammar.production
+                                    (Grammar.r_next Grammar.r_stop
+                                       (Grammar.s_token ("", ".")),
+                                     (fun (x : string) (loc : Ploc.t) ->
+                                        (x : 'e__5)))])))
+                        (Grammar.s_opt
+                           (Grammar.s_nterm
+                              (gen_hebr : 'gen_hebr Grammar.Entry.e))))
+                     (Grammar.s_list0
+                        (Grammar.s_rules
+                           [Grammar.production
+                              (Grammar.r_next Grammar.r_stop
+                                 (Grammar.s_token ("", "/")),
+                               (fun (x : string) (loc : Ploc.t) ->
+                                  (x : 'e__6)));
+                            Grammar.production
+                              (Grammar.r_next Grammar.r_stop
+                                 (Grammar.s_token ("", ".")),
+                               (fun (x : string) (loc : Ploc.t) ->
+                                  (x : 'e__6)))])))
+                  (Grammar.s_opt
+                     (Grammar.s_nterm (int : 'int Grammar.Entry.e))))
+               (Grammar.s_list0 (Grammar.s_token ("", "."))),
+             (fun _ (n3 : 'int option) _ (n2 : 'gen_hebr option) _
+                  (n1 : 'int option) _ (loc : Ploc.t) ->
+                (make_date n1 n2 n3 : 'date_hebr)))]];
+      Grammar.extension (gen_month : 'gen_month Grammar.Entry.e) None
+        [None, None,
+         [Grammar.production
+            (Grammar.r_next Grammar.r_stop
+               (Grammar.s_nterm (month : 'month Grammar.Entry.e)),
+             (fun (m : 'month) (loc : Ploc.t) -> (Right m : 'gen_month)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop
+               (Grammar.s_nterm (int : 'int Grammar.Entry.e)),
+             (fun (i : 'int) (loc : Ploc.t) ->
+                (Left (abs i) : 'gen_month)))]];
+      Grammar.extension (month : 'month Grammar.Entry.e) None
+        [None, None,
+         [Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "DEC")),
+             (fun _ (loc : Ploc.t) -> (12 : 'month)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "NOV")),
+             (fun _ (loc : Ploc.t) -> (11 : 'month)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "OCT")),
+             (fun _ (loc : Ploc.t) -> (10 : 'month)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "SEP")),
+             (fun _ (loc : Ploc.t) -> (9 : 'month)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "AUG")),
+             (fun _ (loc : Ploc.t) -> (8 : 'month)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "JUL")),
+             (fun _ (loc : Ploc.t) -> (7 : 'month)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "JUN")),
+             (fun _ (loc : Ploc.t) -> (6 : 'month)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "MAY")),
+             (fun _ (loc : Ploc.t) -> (5 : 'month)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "APR")),
+             (fun _ (loc : Ploc.t) -> (4 : 'month)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "MAR")),
+             (fun _ (loc : Ploc.t) -> (3 : 'month)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "FEB")),
+             (fun _ (loc : Ploc.t) -> (2 : 'month)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "JAN")),
+             (fun _ (loc : Ploc.t) -> (1 : 'month)))]];
+      Grammar.extension (gen_french : 'gen_french Grammar.Entry.e) None
+        [None, None,
+         [Grammar.production
+            (Grammar.r_next Grammar.r_stop
+               (Grammar.s_nterm (french : 'french Grammar.Entry.e)),
+             (fun (m : 'french) (loc : Ploc.t) -> (Right m : 'gen_french)))]];
+      Grammar.extension (french : 'french Grammar.Entry.e) None
+        [None, None,
+         [Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "COMP")),
+             (fun _ (loc : Ploc.t) -> (13 : 'french)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "FRUC")),
+             (fun _ (loc : Ploc.t) -> (12 : 'french)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "THER")),
+             (fun _ (loc : Ploc.t) -> (11 : 'french)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "MESS")),
+             (fun _ (loc : Ploc.t) -> (10 : 'french)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "PRAI")),
+             (fun _ (loc : Ploc.t) -> (9 : 'french)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "FLOR")),
+             (fun _ (loc : Ploc.t) -> (8 : 'french)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "GERM")),
+             (fun _ (loc : Ploc.t) -> (7 : 'french)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "VENT")),
+             (fun _ (loc : Ploc.t) -> (6 : 'french)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "PLUV")),
+             (fun _ (loc : Ploc.t) -> (5 : 'french)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "NIVO")),
+             (fun _ (loc : Ploc.t) -> (4 : 'french)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "FRIM")),
+             (fun _ (loc : Ploc.t) -> (3 : 'french)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "BRUM")),
+             (fun _ (loc : Ploc.t) -> (2 : 'french)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "VEND")),
+             (fun _ (loc : Ploc.t) -> (1 : 'french)))]];
+      Grammar.extension (year_fren : 'year_fren Grammar.Entry.e) None
+        [None, None,
+         [Grammar.production
+            (Grammar.r_next Grammar.r_stop
+               (Grammar.s_nterm (roman_int : 'roman_int Grammar.Entry.e)),
+             (fun (i : 'roman_int) (loc : Ploc.t) -> (i : 'year_fren)));
+          Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "AN")))
+               (Grammar.s_nterm (roman_int : 'roman_int Grammar.Entry.e)),
+             (fun (i : 'roman_int) _ (loc : Ploc.t) -> (i : 'year_fren)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop
+               (Grammar.s_nterm (int : 'int Grammar.Entry.e)),
+             (fun (i : 'int) (loc : Ploc.t) -> (i : 'year_fren)))]];
+      Grammar.extension (gen_hebr : 'gen_hebr Grammar.Entry.e) None
+        [None, None,
+         [Grammar.production
+            (Grammar.r_next Grammar.r_stop
+               (Grammar.s_nterm (hebr : 'hebr Grammar.Entry.e)),
+             (fun (m : 'hebr) (loc : Ploc.t) -> (Right m : 'gen_hebr)))]];
+      Grammar.extension (hebr : 'hebr Grammar.Entry.e) None
+        [None, None,
+         [Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "ELL")),
+             (fun _ (loc : Ploc.t) -> (13 : 'hebr)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "AAV")),
+             (fun _ (loc : Ploc.t) -> (12 : 'hebr)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "TMZ")),
+             (fun _ (loc : Ploc.t) -> (11 : 'hebr)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "SVN")),
+             (fun _ (loc : Ploc.t) -> (10 : 'hebr)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "IYR")),
+             (fun _ (loc : Ploc.t) -> (9 : 'hebr)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "NSN")),
+             (fun _ (loc : Ploc.t) -> (8 : 'hebr)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "ADS")),
+             (fun _ (loc : Ploc.t) -> (7 : 'hebr)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "ADR")),
+             (fun _ (loc : Ploc.t) -> (6 : 'hebr)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "SHV")),
+             (fun _ (loc : Ploc.t) -> (5 : 'hebr)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "TVT")),
+             (fun _ (loc : Ploc.t) -> (4 : 'hebr)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "KSL")),
+             (fun _ (loc : Ploc.t) -> (3 : 'hebr)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "CSH")),
+             (fun _ (loc : Ploc.t) -> (2 : 'hebr)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("ID", "TSH")),
+             (fun _ (loc : Ploc.t) -> (1 : 'hebr)))]];
+      Grammar.extension (int : 'int Grammar.Entry.e) None
+        [None, None,
+         [Grammar.production
+            (Grammar.r_next
+               (Grammar.r_next Grammar.r_stop (Grammar.s_token ("", "-")))
+               (Grammar.s_token ("INT", "")),
+             (fun (i : string) _ (loc : Ploc.t) ->
+                (try -int_of_string i with Failure _ -> raise Stream.Failure :
+                 'int)));
+          Grammar.production
+            (Grammar.r_next Grammar.r_stop (Grammar.s_token ("INT", "")),
+             (fun (i : string) (loc : Ploc.t) ->
+                (try int_of_string i with Failure _ -> raise Stream.Failure :
+                 'int)))]]])
+
+
+
+
 
 (* Perform a regular expression match. *)
 let preg_match pattern subject =
