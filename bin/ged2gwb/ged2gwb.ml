@@ -63,42 +63,94 @@ let in_file = ref ""
 let print_location pos =
   Printf.fprintf !log_oc "File \"%s\", line %d:\n" !in_file pos
 
+(*
 let rec skip_eol =
   parser
   | [< ''\010' | '\013'; _ = skip_eol >] -> ()
   | [< >] -> ()
+*)
+let rec skip_eol (strm__ : _ Stream.t) =
+  match Stream.peek strm__ with
+    Some ('\010' | '\013') ->
+      Stream.junk strm__;
+      let _ =
+        try skip_eol strm__ with Stream.Failure -> raise (Stream.Error "")
+      in
+      ()
+  | _ -> ()
 
-let rec get_to_eoln len =
+(*let rec get_to_eoln len =
   parser
   | [< ''\010' | '\013'; _ = skip_eol >] -> Buff.get len
   | [< ''\t'; s >] -> get_to_eoln (Buff.store len ' ') s
   | [< 'c; s >] -> get_to_eoln (Buff.store len c) s
   | [< >] -> Buff.get len
+*)
+let rec get_to_eoln len (strm__ : _ Stream.t) =
+  match Stream.peek strm__ with
+    Some ('\010' | '\013') ->
+      Stream.junk strm__;
+      let _ =
+        try skip_eol strm__ with Stream.Failure -> raise (Stream.Error "")
+      in
+      Buff.get len
+  | Some '\t' -> Stream.junk strm__; get_to_eoln (Buff.store len ' ') strm__
+  | Some c -> Stream.junk strm__; get_to_eoln (Buff.store len c) strm__
+  | _ -> Buff.get len
 
-let rec skip_to_eoln =
+(*let rec skip_to_eoln =
   parser
   | [< ''\010' | '\013'; _ = skip_eol >] -> ()
   | [< '_; s >] -> skip_to_eoln s
   | [< >] -> ()
+*)
+let rec skip_to_eoln (strm__ : _ Stream.t) =
+  match Stream.peek strm__ with
+    Some ('\010' | '\013') ->
+      Stream.junk strm__;
+      let _ =
+        try skip_eol strm__ with Stream.Failure -> raise (Stream.Error "")
+      in
+      ()
+  | Some _ -> Stream.junk strm__; skip_to_eoln strm__
+  | _ -> ()
 
 let eol_chars = ['\010'; '\013']
 
-let rec get_ident len =
+(*let rec get_ident len =
   parser
   | [< '' ' | '\t' >] -> Buff.get len
   | [< 'c when not (List.mem c eol_chars); s >] ->
       get_ident (Buff.store len c) s
   | [< >] -> Buff.get len
+*)
+let rec get_ident len (strm__ : _ Stream.t) =
+  match Stream.peek strm__ with
+    Some (' ' | '\t') -> Stream.junk strm__; Buff.get len
+  | Some c when not (List.mem c eol_chars) ->
+      Stream.junk strm__; get_ident (Buff.store len c) strm__
+  | _ -> Buff.get len
 
-let skip_space =
+(*let skip_space =
   parser
   | [< '' ' | '\t' >] -> ()
   | [< >] -> ()
+*)
+let skip_space (strm__ : _ Stream.t) =
+  match Stream.peek strm__ with
+    Some (' ' | '\t') -> Stream.junk strm__; ()
+  | _ -> ()
 
-let rec line_start num =
+(*let rec line_start num =
   parser
   | [< '' '; s >] -> line_start num s
   | [< 'x when x = num >] -> ()
+*)
+let rec line_start num (strm__ : _ Stream.t) =
+  match Stream.peek strm__ with
+    Some ' ' -> Stream.junk strm__; line_start num strm__
+  | Some x when x = num -> Stream.junk strm__; ()
+  | _ -> raise Stream.Failure
 
 let ascii_of_msdos s =
   let conv_char i =
@@ -252,6 +304,7 @@ let utf8_of_string s =
   | MacIntosh -> Mutil.utf_8_of_iso_8859_1 (ascii_of_macintosh s)
   | Utf8 -> s
 
+(*
 let rec get_lev n =
   parser
     [< _ = line_start n; _ = skip_space; r1 = get_ident 0; strm >] ->
@@ -276,6 +329,46 @@ and get_lev_list l n =
   parser
   | [< x = get_lev n; s >] -> get_lev_list (x :: l) n s
   | [< >] -> l
+*)
+
+let rec get_lev n (strm__ : _ Stream.t) =
+  let _ = line_start n strm__ in
+  let _ =
+    try skip_space strm__ with Stream.Failure -> raise (Stream.Error "")
+  in
+  let r1 =
+    try get_ident 0 strm__ with Stream.Failure -> raise (Stream.Error "")
+  in
+  let strm = strm__ in
+  let (rlab, rval, rcont, l) =
+    if String.length r1 > 0 && r1.[0] = '@' then parse_address n r1 strm
+    else parse_text n r1 strm
+  in
+  {rlab = rlab; rval = utf8_of_string rval; rcont = utf8_of_string rcont;
+   rsons = List.rev l; rpos = !line_cnt; rused = false}
+and parse_address n r1 (strm__ : _ Stream.t) =
+  let r2 = get_ident 0 strm__ in
+  let r3 =
+    try get_to_eoln 0 strm__ with
+      Stream.Failure -> raise (Stream.Error "get to eoln")
+  in
+  let l =
+    try get_lev_list [] (Char.chr (Char.code n + 1)) strm__ with
+      Stream.Failure -> raise (Stream.Error "get lev list")
+  in
+  r2, r1, r3, l
+and parse_text n r1 (strm__ : _ Stream.t) =
+  let r2 = get_to_eoln 0 strm__ in
+  let l =
+    try get_lev_list [] (Char.chr (Char.code n + 1)) strm__ with
+      Stream.Failure -> raise (Stream.Error "get lev list")
+  in
+  r1, r2, "", l
+and get_lev_list l n (strm__ : _ Stream.t) =
+  match try Some (get_lev n strm__) with Stream.Failure -> None with
+    Some x -> get_lev_list (x :: l) n strm__
+  | _ -> l
+
 
 (* Error *)
 
@@ -316,6 +409,7 @@ let warning_month_number_dates () =
   | _ -> ()
 
 (* Decoding fields *)
+(*
 let rec skip_spaces =
   parser
   | [< '' '; s >] -> skip_spaces s
@@ -326,6 +420,28 @@ let rec ident_slash len =
   | [< ''\t'; a = ident_slash (Buff.store len ' ') >] -> a
   | [< 'c; a = ident_slash (Buff.store len c) >] -> a
   | [< >] -> Buff.get len
+*)
+
+let rec skip_spaces (strm__ : _ Stream.t) =
+  match Stream.peek strm__ with
+    Some ' ' -> Stream.junk strm__; skip_spaces strm__
+  | _ -> ()
+
+let rec ident_slash len (strm__ : _ Stream.t) =
+  match Stream.peek strm__ with
+    Some '/' -> Stream.junk strm__; Buff.get len
+  | Some '\t' ->
+      Stream.junk strm__;
+      begin try ident_slash (Buff.store len ' ') strm__ with
+        Stream.Failure -> raise (Stream.Error "")
+      end
+  | Some c ->
+      Stream.junk strm__;
+      begin try ident_slash (Buff.store len c) strm__ with
+        Stream.Failure -> raise (Stream.Error "")
+      end
+  | _ -> Buff.get len
+
 
 let strip c str =
   let start =
@@ -382,6 +498,7 @@ let less_greater_escaped s =
     let len = compute_len 0 0 in copy_code_in (Bytes.create len) 0 0
   else s
 
+(*
 let parse_name =
   parser
     [< _ = skip_spaces;
@@ -394,6 +511,28 @@ let parse_name =
   let f = strip_spaces f in
   let s = strip_spaces s in
   ((if f = "" then "x" else f), (if s = "" then "?" else s))
+*)
+let parse_name (strm__ : _ Stream.t) =
+  let _ = skip_spaces strm__ in
+  let invert =
+    match Stream.peek strm__ with
+      Some '/' -> Stream.junk strm__; true
+    | _ -> false
+  in
+  let f =
+    try ident_slash 0 strm__ with Stream.Failure -> raise (Stream.Error "")
+  in
+  let _ =
+    try skip_spaces strm__ with Stream.Failure -> raise (Stream.Error "")
+  in
+  let s =
+    try ident_slash 0 strm__ with Stream.Failure -> raise (Stream.Error "")
+  in
+  let (f, s) = if invert then s, f else f, s in
+  let f = strip_spaces f in
+  let s = strip_spaces s in
+  (if f = "" then "x" else f), (if s = "" then "?" else s)
+
 
 let rec find_field lab =
   function
@@ -417,6 +556,7 @@ let rec find_field_with_value lab v =
       else find_field_with_value lab v rl
   | [] -> false
 
+(*
 let rec lexing_date =
   parser
   | [< ''0'..'9' as c; n = number (Buff.store 0 c) >] -> ("INT", n)
@@ -441,6 +581,68 @@ and text len =
       text (Buff.store len ')') s
   | [< 'c; s >] -> text (Buff.store len c) s
   | [< >] -> len
+*)
+let rec lexing_date (strm__ : _ Stream.t) =
+  match Stream.peek strm__ with
+    Some ('0'..'9' as c) ->
+      Stream.junk strm__;
+      let n =
+        try number (Buff.store 0 c) strm__ with
+          Stream.Failure -> raise (Stream.Error "")
+      in
+      "INT", n
+  | Some ('A'..'Z' as c) ->
+      Stream.junk strm__;
+      let i =
+        try ident (Buff.store 0 c) strm__ with
+          Stream.Failure -> raise (Stream.Error "")
+      in
+      "ID", i
+  | Some '(' ->
+      Stream.junk strm__;
+      let len =
+        try text 0 strm__ with Stream.Failure -> raise (Stream.Error "")
+      in
+      "TEXT", Buff.get len
+  | Some '.' -> Stream.junk strm__; "", "."
+  | Some (' ' | '\t' | '\013') -> Stream.junk strm__; lexing_date strm__
+  | _ ->
+      match try Some (Stream.empty strm__) with Stream.Failure -> None with
+        Some _ -> "EOI", ""
+      | _ ->
+          match Stream.peek strm__ with
+            Some x -> Stream.junk strm__; "", String.make 1 x
+          | _ -> raise Stream.Failure
+and number len (strm__ : _ Stream.t) =
+  match Stream.peek strm__ with
+    Some ('0'..'9' as c) ->
+      Stream.junk strm__;
+      begin try number (Buff.store len c) strm__ with
+        Stream.Failure -> raise (Stream.Error "")
+      end
+  | _ -> Buff.get len
+and ident len (strm__ : _ Stream.t) =
+  match Stream.peek strm__ with
+    Some ('A'..'Z' as c) ->
+      Stream.junk strm__;
+      begin try ident (Buff.store len c) strm__ with
+        Stream.Failure -> raise (Stream.Error "")
+      end
+  | _ -> Buff.get len
+and text len (strm__ : _ Stream.t) =
+  match Stream.peek strm__ with
+    Some ')' -> Stream.junk strm__; len
+  | Some '(' ->
+      Stream.junk strm__;
+      let len =
+        try text (Buff.store len '(') strm__ with
+          Stream.Failure -> raise (Stream.Error "")
+      in
+      text (Buff.store len ')') strm__
+  | Some c -> Stream.junk strm__; text (Buff.store len c) strm__
+  | _ -> len
+
+
 
 let make_date_lexing s = Stream.from (fun _ -> Some (lexing_date s))
 
@@ -485,9 +687,19 @@ let start_with_int x =
   try let s = String.sub x 0 1 in let _ = int_of_string s in true with
     _ -> false
 
+(*
 let roman_int =
   let p =
     parser [< '("ID", x) when is_roman_int x >] -> Mutil.arabian_of_roman x
+  in
+  Grammar.Entry.of_parser date_g "roman int" p
+*)
+let roman_int =
+  let p (strm__ : _ Stream.t) =
+    match Stream.peek strm__ with
+      Some ("ID", x) when is_roman_int x ->
+        Stream.junk strm__; Mutil.arabian_of_roman x
+    | _ -> raise Stream.Failure
   in
   Grammar.Entry.of_parser date_g "roman int" p
 
